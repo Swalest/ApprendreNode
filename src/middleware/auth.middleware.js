@@ -1,16 +1,12 @@
 const { connection } = require("../../database/database.config");
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { sendResponse } = require("../services/http-response-management.service");
 
 const create = (req, res) => {
 
-  let body = "";
-  req.on("data", (chunk) => {
-      body += chunk.toString();
-  });
-
   req.on("end", async () => {
-      const { nom, postnom, prenom, genre, email, phone, adresse, password } = JSON.parse(body);
+      const { nom, postnom, prenom, genre, email, phone, adresse, password } = req.body;
 
       try {
       // Insérer le client
@@ -19,8 +15,9 @@ const create = (req, res) => {
           [nom, postnom, prenom, genre, email, phone, adresse],
           async (err, result) => {
             if(err) {
-              res.writeHead(409, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ code: 409, message: "L'enregistrement de ce client a échoué !", err }));
+              sendResponse(res, 409,
+                { code: 409, message: "L'enregistrement de ce client a échoué !", err });
+              
             }else{
               const clientId = result.insertId;
 
@@ -36,19 +33,24 @@ const create = (req, res) => {
                 [clientId, email, salt, hashedPassword],
                 (err, result) => {
                   if(err) {
-                    res.writeHead(409, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ code: 409, message: "La création de compte de ce client a échoué !", err }));
+                    sendResponse(res, 409,
+                      { code: 409, message: "La création de compte de ce client a échoué !", err });
+                
                   }else{
-                    res.writeHead(200, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({id: clientId, nom, postnom, prenom, genre, email, phone, adresse, user:{id: result.insertId, email, clientId}}));
+                    sendResponse(res, 200, 
+                      {id: clientId, nom, postnom, prenom, genre, email, phone, adresse, user:{id: result.insertId, email, clientId}}
+                    );
+                    
                   }
                 });
                 }
           });
       
       } catch (err) {
-          res.writeHead(409, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ code: 409, message: "L'enregistrement de ce client a échoué !", err }));
+        sendResponse(res, 409,
+          { code: 409, message: "L'enregistrement de ce client a échoué !", err }
+        );
+          
      }
   })
 }
@@ -56,32 +58,24 @@ const create = (req, res) => {
 
 const login = async (req, res) => {
     try {
-        let body = "";
-      req.on("data", (chunk) => {
-          body += chunk.toString();
-      });
 
       req.on("end", async () => {
-        const { email, password } = JSON.parse(body);
+        const { email, password } = req.body;
         try {
           connection.query(`SELECT * FROM user WHERE email = ?`, [email], (err, userResult) => {
-            if (err) {
-              res.writeHead(404, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ code: 404, message: "Cet utilisateur n'existe pas encore !" }));
+            if(err) {
+              sendResponse(res, 404,{ code: 404, message: "Cet utilisateur n'existe pas encore !" });
             } else {
-              //res.writeHead(200, { "Content-Type": "application/json" });
               try{
                 connection.query(`SELECT * FROM client WHERE id = ?`, [userResult[0].clientId], (err, clientResult) => {
                   if(err) {
-                    res.writeHead(404, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ code: 404, message: "Ce client n'existe pas encore !" }));
+                    sendResponse(res, 404, { code: 404, message: "Ce client n'existe pas encore !" });
                   }else {
 
                     // Vérifier le mot de passe
                     const isPasswordValid = bcrypt.compare(password, userResult[0].password);
                     if(!isPasswordValid){
-                      res.writeHead(401, { "Content-Type": "application/json" });
-                      res.end(JSON.stringify({ code: 401, message: "Mot de passe est incorrect !" }));
+                      sendResponse(res, 401, { code: 401, message: "Mot de passe est incorrect !" });
                     }
                       
                     //formation des information à injecter dans le token
@@ -90,27 +84,27 @@ const login = async (req, res) => {
                     const clientName = `${clientResult[0].prenom} ${clientResult[0].nom} ${clientResult[0].postnom}`;
                     const userInfo = {userId, ...clientResult[0]};
                     const data = {userId, clientId, clientName};
+
                     // Générer un jeton d'authentification (exemple: JWT)
                     const token = generateAuthToken(data);
                     const returnData = {userInfo: userInfo, token: token};
-                    res.writeHead(200, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify(returnData));
+                    sendResponse(res, 200, returnData);
                   }
                 })
               }catch (erreur) {
-                res.writeHead(404, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ code: 404, message: "Ce client n'existe pas encore !" }));
+                sendResponse(res, 404, { code: 404, message: "Ce client n'existe pas encore !" });
+                
               }
             }
           });
         } catch (erreur) {
-          res.writeHead(404, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ code: 404, message: "Cet utilisateur n'existe pas encore !" }));
+          sendResponse(res, 404, { code: 404, message: "Cet utilisateur n'existe pas encore !" });
+          
         }
       })
     }catch(erreur){
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: 401, message: "Une erreur est survenue lors de votre authentification !" }));
+      sendResponse(res, 401, { code: 401, message: "Une erreur est survenue lors de votre authentification !" });
+
     }
 }
   
@@ -121,7 +115,7 @@ const generateAuthToken = (data) => {
   const user = {"userId": userId, "clientId": clientId,"clientName": clientName};
 
   // Générer le jeton avec les informations utilisateur et la clé secrète
-  const token = jwt.sign(user, process.env.SECRET_KEY); // Exemple : expiration du jeton après 1 heure
+  const token = jwt.sign(user, process.env.SECRET_KEY);
   return token;
 }
   
@@ -132,8 +126,8 @@ const authenticate = (req, res, next) => {
      const token = req.headers.authorization?.split(' ')[1] || req.body.token || req.cookies.token;
   
      if(!token) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: 401, message: `Aucun jeton d'authentification fourni !` }));
+      sendResponse(res, 401, { code: 401, message: `Aucun jeton d'authentification fourni !` });
+      
      }
    
      try {
@@ -144,8 +138,7 @@ const authenticate = (req, res, next) => {
        req.user = decodedToken;
        next;
      } catch (error) {
-       res.writeHead(401, { "Content-Type": "application/json" });
-       res.end(JSON.stringify({ code: 401, message: `Unauthorized !` }));
+      sendResponse(res, 401, { code: 401, message: `Unauthorized !` });
      }
     next;
   }
@@ -155,23 +148,22 @@ const findConnectedUSer = async (req, res)=>{
   try{
     await connection.query(`SELECT * FROM user WHERE id = ?`, [userId], (err, userResult) => {
       if(err) {
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ code: 404, message: "Cet utilisateur n'existe pas encore !" }));
+        sendResponse(res, 404, { code: 404, message: "Cet utilisateur n'existe pas encore !" });
+        
       }else{
         connection.query(`SELECT * FROM client WHERE id = ?`, [clientId], (err, clientResult) => {
           if(err) {
-            res.writeHead(404, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ code: 404, message: "Ce client n'existe pas encore !" }));
+            sendResponse(res, 404, { code: 404, message: "Ce client n'existe pas encore !" });
           }else{
-            res.writeHead(201, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({...userResult[0], client: clientResult[0]})); 
+            sendResponse(res, 200, {...userResult[0], client: clientResult[0]});
           }
         });
       }
     });
   }catch (error) {
-    res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ code: 404, message: `Une erreur est survenue lors de la récupération d'utilisateur connecté !` }));
+    sendResponse(res, 404, 
+      { code: 404, message: `Une erreur est survenue lors de la récupération d'utilisateur connecté !` }
+    );
   }
 }
 

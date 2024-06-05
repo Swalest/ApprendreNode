@@ -1,4 +1,5 @@
 const { login, authenticate, findConnectedUSer } = require("../middleware/auth.middleware");
+const { parseJson } = require("../middleware/transformer.middleware");
 
 const userController = (req, res) =>{
     const url = req.url;
@@ -9,6 +10,7 @@ const userController = (req, res) =>{
         case "/api/magasin/users/login":
             switch (method) {
                 case "POST":
+                    parseJson(req, res);
                     login(req, res);
                     break;
                 default:

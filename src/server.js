@@ -3,6 +3,7 @@ const { clientController } = require('./controller/client.controller');
 const { client } = require('./models/client.model');
 const { user } = require('./models/user.model');
 const { userController } = require('./controller/user.controller');
+const { sendResponse } = require('./services/http-response-management.service');
 
 const serveur = http.createServer((req, res) =>{
   //Création des tables
@@ -12,31 +13,19 @@ const serveur = http.createServer((req, res) =>{
   const url = req.url;
   
   //Définition des routes
-  switch (url) {
-    case "/api/magasin":
-      salon(req, res);
-      break;
-    case "/api/magasin/clients":
-      clientController(req, res);
-      break;
-    case "/api/magasin/users/login":
-      userController(req, res);
-      break;
-    case "/api/magasin/users":
-      userController(req, res);
-      break;
-    default:
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "text/plain");
-      res.end(JSON.stringify({ code: 404, message: "Route non trouvée !" }));
-      break;
+  if(url === "/api/magasin"){
+    home(req, res);
+  }else if(url.startsWith("/api/magasin/clients")){
+    clientController(req, res);
+  }else if(url.startsWith("/api/magasin/users")){
+    userController(req, res);
+  }else{
+    sendResponse(res, 404, { code: 404, message: `Route non trouvée !` });
   }
 });
-
-const salon = (req, res) => {
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "text/plain");
-  res.end(JSON.stringify({ code: 200, message: `Soyez les bienvenues à l'API de gestion d'un magasin !` }));
+const home = (req, res) => {
+  sendResponse(res, 200, 
+    { code: 200, message: `Soyez les bienvenues à l'API de gestion d'un magasin !` });
 }
 
 const port = process.env.PORT || 5500
