@@ -115,7 +115,7 @@ const generateAuthToken = (data) => {
   const user = {"userId": userId, "clientId": clientId,"clientName": clientName};
 
   // Générer le jeton avec les informations utilisateur et la clé secrète
-  const token = jwt.sign(user, process.env.SECRET_KEY);
+  const token = jwt.sign(user, process.env.SECRET_KEY, /*{expiresIn: true, }*/);
   return token;
 }
   
@@ -123,11 +123,9 @@ const generateAuthToken = (data) => {
 const authenticate = (req, res, next) => {
   
      //Récupérer le jeton d'authentification du header, du corps de la requête ou des cookies
-     const token = req.headers.authorization?.split(' ')[1] || req.body.token || req.cookies.token;
-  
+     const token = req.headers.authorization?.split(' ')[1] /*|| req.body.token || req.cookies.token;*/
      if(!token) {
       sendResponse(res, 401, { code: 401, message: `Aucun jeton d'authentification fourni !` });
-      
      }
    
      try {
@@ -140,13 +138,13 @@ const authenticate = (req, res, next) => {
      } catch (error) {
       sendResponse(res, 401, { code: 401, message: `Unauthorized !` });
      }
-    next;
+    //next;
   }
 
 const findConnectedUSer = async (req, res)=>{
   const {userId, clientId} = req.user;
   try{
-    await connection.query(`SELECT * FROM user WHERE id = ?`, [userId], (err, userResult) => {
+    await connection.query(`SELECT id, email, clientId FROM user WHERE id = ?`, [userId], (err, userResult) => {
       if(err) {
         sendResponse(res, 404, { code: 404, message: "Cet utilisateur n'existe pas encore !" });
         

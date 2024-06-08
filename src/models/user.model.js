@@ -7,6 +7,7 @@ const user = connection.query(
             email VARCHAR(125) NOT NULL,
             password VARCHAR(245),
             salt VARCHAR(100),
+            role VARCHAR(100) DEFAULT "SIMPLE_USER",
             clientId INTEGER,
             PRIMARY KEY(id),
             FOREIGN KEY(clientId) REFERENCES client(id) ON DELETE CASCADE

@@ -1,5 +1,6 @@
 const { login, authenticate, findConnectedUSer } = require("../middleware/auth.middleware");
 const { parseJson } = require("../middleware/transformer.middleware");
+const { sendResponse } = require("../services/http-response-management.service");
 
 const userController = (req, res) =>{
     const url = req.url;
@@ -14,9 +15,7 @@ const userController = (req, res) =>{
                     login(req, res);
                     break;
                 default:
-                    res.statusCode = 404;
-                    res.setHeader("Content-Type", "text/plain");
-                    res.end(JSON.stringify({ code: 404, message: "Méthode non définie !" }));
+                    sendResponse(res, 404, { code: 404, message: "Méthode non définie !" });
                     break;
             }
             break;
